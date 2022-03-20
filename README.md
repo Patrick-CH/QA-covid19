@@ -89,6 +89,7 @@ Project structure
 │  │  AnswerSearch.py
 │  │  ChatBot.py
 │  │  __init__.py
+|  |
 ├─Graph
 │  │  build_graph.py
 │  │  __init__.py
