@@ -12,7 +12,7 @@ We used a [covid19 knowledge graph](http://openkg.cn/dataset/covid-19-baike) fro
 
 Different from other projects, we use a NER model and classifier to process the question.
 
-QIC (Query Intent Classification) dataset and NER dataset is from [CBLUE(Chinese Biomedical Language Understanding Evaluation)]([https://tianchi.aliyun.com/cblue](https://tianchi.aliyun.com/cblue?spm=5176.12282016.0.0.459b7474gIkahM)) 
+QIC (Query Intent Classification) dataset and NER dataset is from [CBLUE(Chinese Biomedical Language Understanding Evaluation)](https://tianchi.aliyun.com/cblue) 
 
 
 
