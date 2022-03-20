@@ -158,7 +158,7 @@ QIC(Query Intent Classification)数据集和NER数据集来自[CBLUE(Chinese Bio
 
 
 
-## 变更日志
+## 版本日志
 
 V0：我们第一个验证系统框架的版本。
 
