@@ -106,7 +106,7 @@ Project structure
 
 ### Features 
 
-We design the QA system with NER model and classifier instead of pre-set rules and keywords, which would help our robot answer much more related questions.
+We design the QA system with NER model and classifier instead of pre-setting rules and keywords, which would help our robot answer much more related questions.
 
 
 
@@ -168,8 +168,8 @@ V1: First publish version with relative abundant function.
 
 - Product (master ): stable version
 - Develop (dev branch): latest version
-- Feature : add new features (under development)
-- Release : public release (under development)
+- Feature: add new features (under development)
+- Release: public release (under development)
 
 
 
