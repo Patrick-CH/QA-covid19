@@ -1,3 +1,5 @@
+[**English**](README.md) | [**中文说明**](README_ZH.md)
+
 # QA-covid19
 
 QA-covid19 is a Question Answering System based on KG (Knowledge Graph) and NLP (Natural Language Processing).
