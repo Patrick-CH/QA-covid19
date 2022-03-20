@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title></title>
+		<style type="text/css">
+            .box{
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+			.inTer{
+				width:720px;
+				height:1800px;
+				border:1px solid deeppink;
+				margin:0 auto;
+				margin-top:10px;
+				overflow-y:auto;
+			}
+			textarea{
+				display:block;
+				width: 660px;
+				height: 120px;
+				margin:0 auto;
+				margin-top:5px;
+			}
+			#btn{
+				display:block;
+                width: 60px;
+                height: 120px;
+				margin-top:5px;
+                margin-left: 10px;;
+			}
+			p{
+				display:inline-block;
+				border-radius:5px;
+				background:#dcdcdc;
+				font-size:48px;
+				padding:5px 5px;
+				margin:5px 0;
+				margin-left:5px;
+				max-width:700px;
+				word-wrap: break-word;
+			}
+            #bottom_line{
+                display: flex;
+                width: 720px;
+                flex-direction: row;
+                justify-items: center;
+            }
+		</style>
+	</head>
+	<body>
+		<div class="box">
+			<div class="inTer" id="sent_txts">
+			</div>
+            <div id="bottom_line">
+                <textarea style="resize: none;" id="txt">
+                </textarea>
+                <input type="button" id="btn" value="发送" />
+            </div>
+		</div>
+	</body>
+</html>
+<script>
+	var btn = document.getElementById("btn");
+	var txt = document.getElementById("txt");
+	var sent_txts = document.getElementById("sent_txts");
+	var p = document.getElementsByTagName("p");
+	btn.onclick=function(){
+		if(txt.value==""){
+			alert("请勿发送空内容");
+		}
+		else{
+			var new_msg = document.createElement("p");
+			new_msg.style.backgroundColor="yellowgreen";
+			new_msg.style.clear="both";
+			new_msg.style.float="right";
+			new_msg.style.marginRight="5px";
+			new_msg.innerText=txt.value;
+			sent_txts.appendChild(new_msg);
+			new_msg.scrollIntoView();
+			var ans = document.createElement("p")
+            ans.innerText=txt.value;
+            ans.style.clear="both";
+			ans.style.float="left";
+			ans.style.marginRight="5px";
+            sent_txts.appendChild(ans);
+            ans.scrollIntoView();
+			txt.value="";
+		}
+
+	}
+		// document.onkeydown=function(evt){
+		// var e = evt || event;
+		// e.keyCode=e.which=e.charCode;
+		// if(e.keyCode==13 || e.keyCode==10){
+		// 	if(txt.value==""){
+		// 		alert("请勿发送空内容");
+		// 	}
+		// 	else{
+		// 		var new_msg = document.createElement("p");
+		// 		new_msg.style.backgroundColor="yellowgreen";
+		// 		new_msg.style.clear="both";
+		// 		new_msg.style.float="right";
+		// 		new_msg.style.marginRight="5px";
+		// 		new_msg.innerText=txt.value;
+		// 		sent_txts.appendChild(new_msg);
+		// 		new_msg.scrollIntoView();
+		// 		var ans = document.createElement("p")
+        //         ans.innerText=txt.value;
+        //         ans.style.clear="both";
+        //         ans.style.float="left";
+        //         ans.style.marginRight="5px";
+        //         sent_txts.appendChild(ans);
+        //         ans.scrollIntoView();
+        //         txt.value="";
+		// 	}
+		// }
+	// }
+</script>

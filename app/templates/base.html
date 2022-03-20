@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    {% block head %}
+        {% block metas %}
+            <meta charset="utf-8">
+        {% endblock metas %}
+
+        <title>{% block title %} whut_cyk 智能问答系统 {% endblock %}</title>
+        <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+        {% block styles %}
+            <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style.css' ) }}">
+        {% endblock styles %}
+    {% endblock head %}
+</head>
+<body>
+<nav>
+    {% block nav %}
+        <ul>
+            <li><a href="{{ url_for('index') }}"><label>主页</label></a></li>
+        </ul>
+    {% endblock %}
+</nav>
+
+<main>
+    {% for message in get_flashed_messages() %}
+        <div class="alert">
+            {{ message }}
+        </div>
+    {% endfor %}
+    {% block content %}{% endblock %}
+</main>
+<footer>
+    {% block footer %}
+        <small> &copy; 2022 <a href="https://github.com/Patrick-CH" title="Written by CYK">CYK</a> /
+            <a href="https://github.com/Patrick-CH/webcompass" title="Fork me on GitHub">GitHub</a> /
+        </small>
+    {% endblock %}
+</footer>
+{% block scripts %}{% endblock %}
+</body>
+</html>

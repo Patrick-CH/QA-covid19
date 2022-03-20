@@ -1,0 +1,180 @@
+body {
+    margin: auto;
+    width: 100%;
+}
+
+nav ul {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    background-color: #333;
+}
+
+nav li {
+    float: left;
+}
+
+nav li a {
+    display: block;
+    color: white;
+    text-align: center;
+    padding: 14px 16px;
+    text-decoration: none;
+}
+
+nav li a:hover {
+    background-color: #111;
+}
+
+main {
+    padding: 10px 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+table {
+    align-self: center;
+}
+
+form {
+    align-self: center;
+}
+
+input {
+    width: 240px;
+    height: 30px;
+}
+
+label {
+    width: 240px;
+    height: 30px;
+}
+
+footer {
+    font-size: 13px;
+    color: #888;
+    border-top: 1px solid #eee;
+    margin-top: 25px;
+    text-align: center;
+    padding: 10px;
+
+}
+
+.alert {
+    position: relative;
+    padding: 0.75rem 1.25rem;
+    margin-bottom: 1rem;
+    border: 1px solid transparent;
+    border-radius: 0.25rem;
+    color: #004085;
+    background-color: #cce5ff;
+    border-color: #b8daff;
+    font-size: 18px;
+}
+
+.search_box{
+    width: 100%;
+    height: 60px;
+    display: flex;
+    justify-content: end;
+    /*background-color: chartreuse;*/
+}
+
+.input_text {
+    background-color: #ffffff;
+    border: none;
+    border-radius: 5px;
+    text-decoration: none;
+    font-size: 16px;
+    width: 240px;
+    height: 40px;
+    margin: 10px;
+}
+
+.search_btn {
+    background-color: #202124;
+    border: none;
+    border-radius: 5px;
+    color: white;
+    text-decoration: none;
+    font-size: 20px;
+    width: 120px;
+    height: 45px;
+    margin: 10px;
+}
+
+.list_btn{
+    background-color: #202124;
+    border: none;
+    border-radius: 5px;
+    color: white;
+    text-decoration: none;
+    width: 240px;
+    height: 55px;
+    margin: 10px;
+    font-size: 22px;
+}
+
+.submit{
+    background-color: #202124;
+    border: none;
+    border-radius: 5px;
+    color: white;
+    text-decoration: none;
+    font-size: 16px;
+    width: 240px;
+    height: 40px;
+    margin: 10px;
+}
+
+.table_btn{
+    width: 80px;
+    background-color: #939393;
+    font-size: 20px;
+}
+
+button{
+    background-color: #202124;
+    border: none;
+    border-radius: 5px;
+    color: #ffffff;
+    text-decoration: none;
+    font-size: 16px;
+    width: 180px;
+    height: 40px;
+    margin: 10px;
+}
+
+#in_record, #in_record th, #in_record td{
+    font-size: 18px;
+}
+
+#out_record, #out_record th, #out_record td{
+    font-size: 18px;
+}
+
+#back, #back th, #back td{
+    font-size: 22px;
+}
+
+#borrow, #borrow th, #borrow td{
+    font-size: 22px;
+}
+
+#scrap, #scrap th, #scrap td{
+    font-size: 22px;
+}
+
+#equipment, #equipment th, #equipment td{
+    font-size: 19px;
+}
+
+input{
+    font-size: 20px;
+    height: 40px;
+}
+
+label{
+    font-size: 20px;
+}
