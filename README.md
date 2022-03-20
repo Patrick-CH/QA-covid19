@@ -177,7 +177,7 @@ V1: First publish version with relative abundant function.
 
 ## Reference
 
-[1] CBLUE: A Chinese Biomedical Language Understanding Evaluation Benchmark [[github](https://github.com/CBLUEbenchmark/CBLUE)] [[website]([https://tianchi.aliyun.com/cblue)]
+[1] CBLUE: A Chinese Biomedical Language Understanding Evaluation Benchmark [[github](https://github.com/CBLUEbenchmark/CBLUE)] [[website](https://tianchi.aliyun.com/cblue)]
 
 [2] COVID-19 Open Knowledge Graph. encyclopedia [[website](http://openkg.cn/dataset/covid-19-baike)]
 
