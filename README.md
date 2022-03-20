@@ -201,4 +201,4 @@ Authors:
 
 We would like to thank WHUT for providing us an opportunity to team up and work together.
 
-I would like to acknowledge Professor, Doc. Liu, for inspiring my interest in the development of innovative technologies.
+We would like to acknowledge Professor, Doc. Liu, for inspiring my interest in the development of innovative technologies.
