@@ -177,7 +177,7 @@ V1：首次发布功能比较丰富的版本。
 
 ## 参考
 
-[1] CBLUE: A Chinese Biomedical Language Understanding Evaluation Benchmark [[github](https://github.com/CBLUEbenchmark/CBLUE)] [[网站]([https://tianchi.aliyun.com/cblue)]
+[1] CBLUE: A Chinese Biomedical Language Understanding Evaluation Benchmark [[github](https://github.com/CBLUEbenchmark/CBLUE)] [[网站](https://tianchi.aliyun.com/cblue)]
 
 [2] COVID-19 开放知识图谱.百科[[网站](http://openkg.cn/dataset/covid-19-baike)]
 
