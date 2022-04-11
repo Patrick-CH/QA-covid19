@@ -1,6 +1,6 @@
 # "治疗方案", "其他", "疾病表述", "病因分析", "注意事项", "功效作用", "病情诊断", "就医建议", "医疗费用", "指标解读", "后果表述"
 from py2neo import Graph
-
+import re
 from difflib import SequenceMatcher
 
 
@@ -31,9 +31,20 @@ class AnswerSearcher:
         print("AnswerSearcher 加载成功")
 
     def _normalize_keywords(self):
-        #  基础信息规范化
-        #  NER结果    pro医疗程序, dis疾病, sym症状, ite检查科目, bod身体, dru药物, mic微生物, equ医疗设备, dep科室
-        #  std  医学专科 检查科目 疾病 病毒 症状 细菌 药物
+        """
+        基础信息规范化
+        NER结果    pro医疗程序, dis疾病, sym症状, ite检查科目, bod身体, dru药物, mic微生物, equ医疗设备, dep科室
+        :return: dict
+        {
+            "医学专科": [],
+            "检查科目": [],
+            "疾病": [],
+            "病毒": [],
+            "症状": [],
+            "细菌": [],
+            "药物": []
+        }
+        """
         std_similarity = 0.75
 
         if 'dis' in self.keywords.keys():
@@ -181,144 +192,254 @@ class AnswerSearcher:
         if 'bod' in self.keywords.keys():
             self.extend_keywords["发病部位"] += self.keywords['bod']
 
+    def _get_dis_info(self, dis):
+        """
+        查询疾病信息
+        :param dis: str 疾病名称
+        :return: dis_info 字典，包含如下信息
+        {
+            'subject': 'xx科'
+            'sym': ['症状1', '症状2']
+            'plan': [('症状1', ['药品1', '药品2' ...]), ('症状2', ['药品5', '药品6' ...]), ...]
+            'why': ['原因1', '原因2', ...],
+            'protect': ['预防1', '预防2', ...]
+        }
+        """
+        dis_info = {}
+
+        # 查询常见症状
+        gql = "MATCH (q)-[r:`临床症状`]->(n) WHERE q.name = '{}' RETURN n.name".format(dis)
+        gql1 = "MATCH (p) WHERE p.name = '{}' AND EXISTS(p.`临床表现`) RETURN p.`临床表现`".format(dis)
+        r = self.g.run(gql).data()
+        r1 = self.g.run(gql1).data()
+        temp_sym = [d['n.name'] for d in r]
+        for d in r1:
+            temp_sym += re.split('[，；、]', d['p.`临床表现`'])
+        temp_sym = list(set(temp_sym))
+        if len(temp_sym) > 0:
+            dis_info['sym'] = temp_sym
+
+        # 查询症状对应的药品
+        temp_plan = []  # [(sym1, [drug1, drug2 ...]), (sym2, [drug5, drug6 ...]), ...]
+        for sym in temp_sym:
+            gql = "MATCH (n)-[r:`适用症状`]->(p) WHERE p.name = '{}' RETURN n.name".format(sym)
+            r = self.g.run(gql).data()
+            dru_ls = [j['n.name'] for j in r]
+            if len(dru_ls) > 0:
+                dru_ls = list(set(dru_ls))
+                temp_plan.append((sym, dru_ls))
+        if len(temp_plan) > 0:
+            dis_info['plan'] = temp_plan
+
+        # 查询常见病因
+        gql = "MATCH (n)-[r:`引起疾病`]->(p) WHERE p.name = '{}' RETURN n.name".format(dis)
+        gql1 = "MATCH (p)-[r:`主要病因`]->(n) WHERE p.name = '{}' RETURN n.name".format(dis)
+        gql2 = "MATCH (n:`疾病`) WHERE EXISTS(n.`常见病因`) AND n.name = '{}' RETURN n.`常见病因`".format(dis)
+        r = self.g.run(gql).data()
+        r1 = self.g.run(gql1).data()
+        r2 = self.g.run(gql2).data()
+        temp_why = [j['n.name'] for j in r]
+        temp_why += [j['n.name'] for j in r1]
+        temp_why += [j['n.`常见病因`'] for j in r2]
+        if len(temp_why) > 0:
+            temp_why = list(set(temp_why))
+            dis_info['why'] = temp_why
+
+        # 查询就诊科室
+        gql = "MATCH (q)-[r:`就诊科室`]->(n) WHERE q.name = '{}' RETURN n.name".format(dis)
+        r = self.g.run(gql).data()
+        if len(r) > 0:
+            dis_info['subject'] = r[0]['n.name']
+        else:
+            gql = "MATCH (n) WHERE n.name = '{}' AND EXISTS(n.`就诊科室`) RETURN n.`就诊科室`".format(dis)
+            r = self.g.run(gql).data()
+            if len(r) > 0:
+                dis_info['subject'] = r[0]['n.`就诊科室`']
+
+        # 查询预防措施
+        gql = "MATCH (n) WHERE EXISTS(n.`预防措施`) AND n.name = '{}' RETURN n.`预防措施`".format(dis)
+        r = self.g.run(gql).data()
+        protect = [j['n.`预防措施`'] for j in r]
+        if len(protect) > 0:
+            dis_info['protect'] = list(set(protect))
+
+        dis_info['type'] = 'dis'
+        return dis_info
+
+    def _get_sym_info(self, sym):
+        """
+        查询症状信息
+        :param sym: str 症状
+        :return: dict
+        {
+            'subject': '就诊科室',
+            'test': ['检查项目1', '检查项目2', ...],
+            'drugs': ['药品1', '药品2', ...],
+            'protect': ['预防1', '预防2', ...]
+        }
+        """
+        sym_info = {}
+
+        # 查询就诊科室
+        gql = "MATCH (q)-[r:`就诊科室`]->(n) WHERE q.name = '{}' RETURN n.name".format(sym)
+        r = self.g.run(gql).data()
+        if len(r) > 0:
+            sym_info['subject'] = r[0]['n.name']
+        else:
+            gql = "MATCH (n) WHERE n.name = '{}' AND EXISTS(n.`就诊科室`) RETURN n.`就诊科室`".format(sym)
+            r = self.g.run(gql).data()
+            if len(r) > 0:
+                sym_info['subject'] = r[0]['n.`就诊科室`']
+
+        # 检查项目
+        gql = "MATCH (q)-[r:`检查项目`]->(n) WHERE q.name = '{}' RETURN n.name".format(sym)
+        r = self.g.run(gql).data()
+        tests = [j['n.name'] for j in r]
+        if len(tests) > 0:
+            sym_info['test'] = list(set(tests))
+
+        # 查询常用药物
+        gql = "MATCH (n)-[r:`适用症状`]->(q) WHERE q.name = '{}' RETURN n.name".format(sym)
+        r = self.g.run(gql).data()
+        temp_dru = [j['n.name'] for j in r]
+        if len(temp_dru) > 0:
+            sym_info['drugs'] = list(set(temp_dru))
+
+        # 查询主要病因
+        gql = "MATCH (q)-[r:`主要病因`]->(n:`细菌`) WHERE q.name = '{}' RETURN n.name".format(sym)
+        gql1 = "MATCH (q)-[r:`主要病因`]->(n:`病毒`) WHERE q.name = '{}' RETURN n.name".format(sym)
+        r = self.g.run(gql).data()
+        r1 = self.g.run(gql1).data()
+        temp_why = [j['n.name'] for j in r]
+        temp_why += [j['n.name'] for j in r1]
+        if len(temp_why) > 0:
+            sym_info['why'] = list(set(temp_why))
+
+        # 查询预防措施
+        gql = "MATCH (n) WHERE EXISTS(n.`预防措施`) AND n.name = '{}' RETURN n.`预防措施`".format(sym)
+        r = self.g.run(gql).data()
+        protect = [j['n.`预防措施`'] for j in r]
+        if len(protect) > 0:
+            sym_info['protect'] = list(set(protect))
+
+        sym_info['type'] = 'sym'
+        return sym_info
+
+    def _get_dru_info(self, drug):
+        """
+        查询药品信息
+        :param drug: str 药品
+        :return: dict
+        {
+            'subject': '适用科室',
+            'dis': ['疾病1', '疾病2', ...],
+            'sym': ['症状1', '症状2', ...],
+            'caution': ['禁忌1, '禁忌2' ...],
+        }
+        """
+        dru_info = {}
+
+        # 查询禁忌
+        gql = "MATCH (n) WHERE EXISTS(n.`禁忌`) AND n.name = '{}' RETURN n.`禁忌`".format(drug)
+        r = self.g.run(gql).data()
+        if len(r) > 0:
+            dru_info['caution'] = list(set([j['n.`禁忌`'] for j in r]))
+
+        # 查询适用疾病
+        gql = "MATCH (p)-[r:`适用疾病`]->(n) WHERE p.name = '{}' RETURN n.name".format(drug)
+        r = self.g.run(gql).data()
+        if len(r) > 0:
+            dru_info['dis'] = list(set([j['n.name'] for j in r]))
+
+        # 查询适用症状
+        gql = "MATCH (p)-[r:`适用症状`]->(n) WHERE p.name = '{}' RETURN n.name".format(drug)
+        r = self.g.run(gql).data()
+        if len(r) > 0:
+            dru_info['sym'] = list(set([j['n.name'] for j in r]))
+
+        dru_info['type'] = 'dru'
+        return dru_info
+
+    def _get_mic_info(self, micro):
+        """
+        查询微生物信息
+        :param micro: str 细菌 / 病毒
+        :return: bac_info { dis: [], sym: []}
+        """
+        mic_info = {}
+        gql = "MATCH (p)-[r:`引起疾病`]->(n) WHERE p.name = '{}' RETURN n.name".format(micro)
+        gql1 = "MATCH (p)-[r:`引起症状`]->(n) WHERE p.name = '{}' RETURN n.name".format(micro)
+        r = self.g.run(gql).data()
+        r1 = self.g.run(gql1).data()
+        if len(r) > 0:
+            temp_dis = [j['n.name'] for j in r]
+            temp_dis = list(set(temp_dis))
+            mic_info['dis'] = temp_dis
+        if len(r1) > 0:
+            temp_sym = [j['n.name'] for j in r1]
+            temp_sym = list(set(temp_sym))
+            mic_info['sym'] = temp_sym
+
+        mic_info['type'] = "mic"
+        return mic_info
+
     def _search_data(self):
-        #  std  医学专科 检查科目 疾病 病毒 症状 细菌 药物
+        """
+        查询所需要信息，
+        标准查询关键词 std_keywords 医学专科 检查科目 疾病 病毒 症状 细菌 药物
+        :return: dict {'疾病1': dis_info, '症状2': sym_info, ...}
+        """
         data = dict()
         # 查询治疗方案
         if self.intention == '治疗方案':
-            dru_for_dis = dict()
-            dru_for_sym = dict()
-
             for i in self.std_keywords['疾病']:
-                gql = "MATCH (n)-[r:`适用疾病`]->(q) WHERE q.name = '{}' RETURN n".format(i)
-                gql1 = "MATCH (p)-[r:`常用药物`]->(n) WHERE p.name = '{}' RETURN n".format(i)
-                r = self.g.run(gql).data()
-                r1 = self.g.run(gql1).data()
-                temp_dru = [d['n']['name'] for d in r]
-                temp_dru += [d['n']['name'] for d in r1]
-                if len(temp_dru) > 0:
-                    if i in dru_for_dis.keys():
-                        dru_for_dis[i] += temp_dru
-                    else:
-                        dru_for_dis[i] = temp_dru
-            if len(dru_for_dis) > 0:
-                data.update({'dru_for_dis': dru_for_dis})
-
+                data[i] = self._get_dis_info(i)
             for i in self.std_keywords['症状']:
-                gql = "MATCH (n)-[r:`适用症状`]->(q) WHERE q.name = '{}' RETURN n".format(i)
-                r = self.g.run(gql).data()
-                if len(r) > 0:
-                    temp_dru = [d['n']['name'] for d in r]
-                    if i in dru_for_sym.keys():
-                        dru_for_sym[i] += temp_dru
-                    else:
-                        dru_for_sym[i] = temp_dru
-            if len(dru_for_sym) > 0:
-                data.update({'dru_for_sym': dru_for_sym})
+                data[i] = self._get_sym_info(i)
 
         # 查询疾病是什么
         elif self.intention == '疾病表述':
-            exp_for_dis = dict()
             for i in self.std_keywords['疾病']:
-                gql = "MATCH (n) WHERE n.name='{}' RETURN n".format(i)
-                r = self.g.run(gql).data()
-                if len(r) > 0:
-                    temp_dis = [dict(d['n']) for d in r]
-                    if i not in exp_for_dis.keys():
-                        exp_for_dis[i] = dict()
-                    for dis in temp_dis:
-                        exp_for_dis[i].update(dis)
-            if len(exp_for_dis) > 0:
-                data.update({'exp_for_dis': exp_for_dis})
+                data[i] = self._get_dis_info(i)
 
         # 查询病因分析
         elif self.intention == '病因分析':
-            rsn_for_dis = dict()
-
             for i in self.std_keywords['疾病']:
-                gql = "MATCH (p)-[r:`主要病因`]->(n) WHERE p.name = '{}' RETURN n".format(i)
-                r = self.g.run(gql).data()
-                if len(r) > 0:
-                    rsn_for_dis[i] = set([d['n'].name for d in r])
-                gql1 = "MATCH (n:`疾病`) WHERE EXISTS(n.`常见病因`) AND n.name = '{}' RETURN n.`常见病因`".format(i)
-                r1 = self.g.run(gql1).data()
-                if len(r1) > 0:
-                    if i not in rsn_for_dis.keys():
-                        rsn_for_dis[i] = set()
-                    for j in r1:
-                        rsn_for_dis[i].add(j['n.`常见病因`'])
-            if len(rsn_for_dis) > 0:
-                data.update({'rsn_for_dis': rsn_for_dis})
+                data[i] = self._get_dis_info(i)
+            for i in self.std_keywords['症状']:
+                data[i] = self._get_sym_info(i)
 
         # 查询注意事项
         elif self.intention == '注意事项':
-            cau_for_dru = dict()
-            cau_for_dis = dict()
-            cau_for_sym = dict()
-
-            for i in self.std_keywords['药物']:
-                gql = "MATCH (n) WHERE EXISTS(n.`禁忌`) AND n.name = '{}' RETURN n.`禁忌`".format(i)
-                r = self.g.run(gql).data()
-                if len(r) > 0:
-                    if i not in cau_for_dru.keys():
-                        cau_for_dru[i] = set()
-                    for j in r:
-                        cau_for_dru[i].add(j['n.`禁忌`'])
-            if len(cau_for_dru) > 0:
-                data.update({'cau_for_dru': cau_for_dru})
-
             for i in self.std_keywords['疾病']:
-                gql = "MATCH (n) WHERE EXISTS(n.`预防措施`) AND n.name = '{}' RETURN n.`预防措施`".format(i)
-                r = self.g.run(gql).data()
-                if len(r) > 0:
-                    if i not in cau_for_dis.keys():
-                        cau_for_dis[i] = set()
-                    for j in r:
-                        cau_for_dis[i].add(j['n.`预防措施`'])
-            if len(cau_for_dis) > 0:
-                data.update({'cau_for_dis': cau_for_dis})
-
+                data[i] = self._get_dis_info(i)
             for i in self.std_keywords['症状']:
-                gql = "MATCH (n) WHERE EXISTS(n.`预防措施`) AND n.name = '{}' RETURN n.`预防措施`".format(i)
-                r = self.g.run(gql).data()
-                if len(r) > 0:
-                    if i not in cau_for_sym.keys():
-                        cau_for_sym[i] = set()
-                    for j in r:
-                        cau_for_sym[i].add(j['n.`预防措施`'])
-            if len(cau_for_sym) > 0:
-                data.update({'cau_for_sym': cau_for_sym})
+                data[i] = self._get_sym_info(i)
+            for i in self.std_keywords['药物']:
+                data[i] = self._get_dru_info(i)
 
         # 查询功效作用
         elif self.intention == '功效作用':
-            dis_for_dru = dict()
-            sym_for_dru = dict()
             for i in self.std_keywords['药物']:
-                gql = "MATCH (p)-[r:`适用疾病`]->(n) WHERE p.name = '{}' RETURN n.name".format(i)
-                r = self.g.run(gql).data()
-                if len(r) > 0:
-                    if i not in dis_for_dru.keys():
-                        dis_for_dru[i] = set()
-                    for d in r:
-                        dis_for_dru[i].add(d['n.name'])
-                if len(dis_for_dru) > 0:
-                    data.update({'dis_for_dru': dis_for_dru})
-
-                gql2 = "MATCH (p)-[r:`适用症状`]->(n) WHERE p.name = '{}' RETURN n.name".format(i)
-                r2 = self.g.run(gql2).data()
-                if len(r2) > 0:
-                    if i not in sym_for_dru.keys():
-                        sym_for_dru[i] = set()
-                    for d in r2:
-                        sym_for_dru[i].add(d['n.name'])
-                if len(sym_for_dru) > 0:
-                    data.update({'sym_for_dru': sym_for_dru})
+                data[i] = self._get_dru_info(i)
 
         # 查询病情诊断
         elif self.intention == '病情诊断':
+            subjects = []
             temp_data = dict()
-            for i in self.std_keywords['症状']:
+            for i in self.std_keywords['症状'] + self.std_keywords['疾病']:
+                # 查询可能的疾病
                 gql = "MATCH (n:`疾病`)-[r:`临床症状`]->(p) WHERE p.name = '{}' RETURN n.name".format(i)
+                r = self.g.run(gql).data()
+                temp_dis = [j['n.name'] for j in r]
+                temp_dis = set(temp_dis)
+                if len(r) > 0:
+                    for dis in temp_dis:
+                        if dis not in temp_data.keys():
+                            temp_data[dis] = 10
+                        else:
+                            temp_data[dis] += 10
+                gql = "MATCH (n:`疾病`)-[r:`主要病因`]->(q)-[r1:`引起症状`]->(m) WHERE m.name = '{}' RETURN n.name".format(i)
                 r = self.g.run(gql).data()
                 temp_dis = [j['n.name'] for j in r]
                 temp_dis = set(temp_dis)
@@ -328,34 +449,26 @@ class AnswerSearcher:
                             temp_data[dis] = 1
                         else:
                             temp_data[dis] += 1
+
+                # 查询科室
+                gql = "MATCH (p)-[r:`就诊科室`]->(n:`医学专科`) WHERE p.name = '{}' RETURN n.name".format(i)
+                r = self.g.run(gql).data()
+                if len(r) > 0:
+                    subjects += list(set([j['n.name'] for j in r]))
+
             diss = list(temp_data.keys())
             rates = list(temp_data.values())
             rank = list(zip(diss, rates))
             rank.sort(key=lambda x: x[1], reverse=True)
             if len(rank) > 0:
-                data.update({'dis_for_sym': rank})
+                data.update({'judge': {'rank': rank, 'subjects': subjects}})
 
         # 查询就医建议
         elif self.intention == '就医建议':
-            dep_for_dis = dict()
-            for i in (self.std_keywords['疾病'] + self.std_keywords['症状']):
-                gql = "MATCH (p)-[r:`就诊科室`]->(n) WHERE p.name = '{}' RETURN n.name".format(i)
-                r = self.g.run(gql).data()
-                if len(r) > 0:
-                    if i not in dep_for_dis.keys():
-                        dep_for_dis[i] = set()
-                    for j in r:
-                        dep_for_dis[i].add(j['n.name'])
             for i in self.std_keywords['疾病']:
-                gql = "MATCH (p) WHERE EXISTS(p.`就诊科室`) AND p.name = '{}' RETURN p.`就诊科室`".format(i)
-                r = self.g.run(gql).data()
-                if len(r) > 0:
-                    if i not in dep_for_dis.keys():
-                        dep_for_dis[i] = set()
-                    for j in r:
-                        dep_for_dis[i].add(j['p.`就诊科室`'])
-            if len(dep_for_dis) > 0:
-                data.update({'dep_for_dis': dep_for_dis})
+                data[i] = self._get_dis_info(i)
+            for i in self.std_keywords['症状']:
+                data[i] = self._get_sym_info(i)
 
         # 查询医疗费用
         elif self.intention == '医疗费用':
@@ -367,61 +480,12 @@ class AnswerSearcher:
 
         # 查询后果表述
         elif self.intention == '后果表述':
-            dis_for_vir = dict()
-            dis_for_bac = dict()
-            sym_for_vir = dict()
-            sym_for_bac = dict()
-            sym_for_dis = dict()
             for i in self.std_keywords['病毒']:
-                gql = "MATCH (p)-[r:`引起疾病`]->(n) WHERE p.name = '{}' RETURN n.name".format(i)
-                gql1 = "MATCH (p)-[r:`引起症状`]->(n) WHERE p.name = '{}' RETURN n.name".format(i)
-                r = self.g.run(gql).data()
-                r1 = self.g.run(gql1).data()
-                if len(r) > 0:
-                    if i not in dis_for_vir.keys():
-                        dis_for_vir[i] = set()
-                    for j in r:
-                        dis_for_vir[i].add(j['n.name'])
-                if len(r1) > 0:
-                    if i not in sym_for_vir.keys():
-                        sym_for_vir[i] = set()
-                    for j in r1:
-                        sym_for_vir[i].add(j['n.name'])
-            if len(dis_for_vir) > 0:
-                data.update({'dis_for_vir': dis_for_vir})
-            if len(sym_for_vir) > 0:
-                data.update({'sym_for_vir': sym_for_vir})
-
+                data[i] = self._get_mic_info(i)
             for i in self.std_keywords['细菌']:
-                gql = "MATCH (p)-[r:`引起疾病`]->(n) WHERE p.name = '{}' RETURN n.name".format(i)
-                gql1 = "MATCH (p)-[r:`引起症状`]->(n) WHERE p.name = '{}' RETURN n.name".format(i)
-                r = self.g.run(gql).data()
-                r1 = self.g.run(gql1).data()
-                if len(r) > 0:
-                    if i not in dis_for_bac.keys():
-                        dis_for_bac[i] = set()
-                    for j in r:
-                        dis_for_bac[i].add(j['n.name'])
-                if len(r1) > 0:
-                    if i not in sym_for_bac.keys():
-                        sym_for_bac[i] = set()
-                    for j in r:
-                        sym_for_bac[i].add(j['n.name'])
-            if len(dis_for_bac) > 0:
-                data.update({'dis_for_bac': dis_for_bac})
-            if len(sym_for_bac) > 0:
-                data.update({'sym_for_bac': sym_for_bac})
-
+                data[i] = self._get_mic_info(i)
             for i in self.std_keywords['疾病']:
-                gql = "MATCH (p)-[r:`临床症状`]->(n) WHERE p.name =~ '{}' RETURN n.name".format(i)
-                r = self.g.run(gql).data()
-                if len(r) > 0:
-                    if i not in sym_for_dis.keys():
-                        sym_for_dis[i] = set()
-                    for j in r:
-                        sym_for_dis[i].add(j['n.name'])
-            if len(sym_for_dis) > 0:
-                data.update({'sym_for_dis': sym_for_dis})
+                data[i] = self._get_dis_info(i)
 
         return data
 
@@ -445,5 +509,5 @@ if __name__ == '__main__':
     anss = AnswerSearcher()
     # kw = {'dis': ['咳痰', '咳嗽', '肺炎', '梅毒'], 'sym': ['头晕', '呼吸困难'], 'pro': ['抗体检查'], 'equ': ['显微镜'], 'dru': ['头孢'],
     #       'bod': ['四肢'], 'dep': ['呼吸外科室'], 'mic': ['细菌', '病毒']}
-    kw = {'dis': ['梅毒', '败血症'], 'mic': ['表皮葡萄球菌', '腺病毒']}
-    print(anss.answer_search("后果表述", kw))
+    kw = {'dis': ['肺炎']}
+    print(anss.answer_search("疾病表述", kw))
