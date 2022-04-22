@@ -456,9 +456,7 @@ class AnswerSearcher:
                 if len(r) > 0:
                     subjects += list(set([j['n.name'] for j in r]))
 
-            diss = list(temp_data.keys())
-            rates = list(temp_data.values())
-            rank = list(zip(diss, rates))
+            rank = [(k, v) for k, v in temp_data.items()]
             rank.sort(key=lambda x: x[1], reverse=True)
             if len(rank) > 0:
                 data.update({'judge': {'rank': rank, 'subjects': subjects}})
