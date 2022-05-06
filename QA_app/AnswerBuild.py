@@ -86,6 +86,14 @@ def build_mic_ans(mic_name: str, mic_info: dict, mask_info: list = None):
     return ans
 
 
+def build_check_ans(check_name: str, check_info: dict, mask_info: list = None):
+    ans = ''
+    if 'category' in check_info and (mask_info is None or 'sym' not in mask_info):
+        ans += f"{check_name}属于，{check_info[['category']]}"
+    if 'sym' in check_info and (mask_info is None or 'sym' not in mask_info):
+        ans += f"需要检查{check_name}的症状有：" + ','.join(check_info['sym'])
+
+
 def build_answer(intention, data):
     ans = ""
     # 查询治疗方案
@@ -173,5 +181,23 @@ def build_answer(intention, data):
             elif data[k]['type'] == 'mic':
                 # 微生物引起疾病
                 ans += build_mic_ans(k, data[k])
+
+    # 查询症状-检查
+    elif intention == '症状-检查':
+        for k, v in data.items():
+            if v['type'] == 'sym':
+                ans += build_sym_ans(k, v, mask_info=['why', 'drugs', 'protect', 'subject'])
+
+    # 查询检查-症状
+    elif intention == '检查-症状':
+        for k, v in data.items():
+            if v['type'] == 'check':
+                ans += build_check_ans(k, v, mask_info=[])
+
+    # 查询临床症状
+    elif intention == '临床症状':
+        for k, v in data.items():
+            if v['type'] == 'dis':
+                ans += build_dis_ans(k, v, mask_info=['why', 'protect', 'subject', 'plan'])
 
     return ans

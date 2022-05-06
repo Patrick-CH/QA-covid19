@@ -383,6 +383,26 @@ class AnswerSearcher:
         mic_info['type'] = "mic"
         return mic_info
 
+    def _get_check_info(self, check):
+        """
+        查询检查信息
+        :param check: 检查
+        :return: check_info { sym: [], category: str}
+        """
+        check_info = {}
+        gql = "MATCH (p)-[r:`检查项目`]->(n) WHERE p.name = '{}' RETURN n.name".format(check)
+        gql1 = "MATCH (p:`检查科目`) WHERE p.name = '{}' AND EXISTS (p.`所属分类`) RETURN p.`所属分类` as cate".format(check)
+        r = self.g.run(gql).data()
+        r1 = self.g.run(gql1).data()
+        if len(r) > 0:
+            temp_sym = [j['n.name'] for j in r]
+            temp_sym = list(set(temp_sym))
+            check_info['sym'] = temp_sym
+        if len(r1) > 0:
+            check_info['category'] = r[0]['cate']
+        check_info['type'] = "check"
+        return check
+
     def _search_data(self):
         """
         查询所需要信息，
@@ -482,6 +502,21 @@ class AnswerSearcher:
                 data[i] = self._get_mic_info(i)
             for i in self.std_keywords['细菌']:
                 data[i] = self._get_mic_info(i)
+            for i in self.std_keywords['疾病']:
+                data[i] = self._get_dis_info(i)
+
+        # 查询疾病-检查
+        elif self.intention == '症状-检查':
+            for i in self.std_keywords['症状']:
+                data[i] = self._get_sym_info(i)
+
+        # 查询检查-疾病
+        elif self.intention == '检查-症状':
+            for i in self.std_keywords['检查科目']:
+                data[i] = self._get_check_info(i)
+
+        # 临床症状
+        elif self.intention == '临床症状':
             for i in self.std_keywords['疾病']:
                 data[i] = self._get_dis_info(i)
 
