@@ -38,7 +38,7 @@ if __name__ == '__main__':
     print(train_x.shape, train_y.shape)
     model = build_classifier_model(len(dp.types))
     model.summary()
-    model.compile(Adam(5e-4, epsilon=1e-8), loss="CategoricalCrossentropy", metrics=['accuracy'])
+    model.compile(Adam(3e-4, epsilon=1e-8), loss="CategoricalCrossentropy", metrics=['accuracy'])
     history = model.fit(train_x, train_y, epochs=5, batch_size=4, validation_split=0.2)
     model.save_model("model\\bert_ner_v0")
     sentences = tf.constant(dp.train_x[:3])
